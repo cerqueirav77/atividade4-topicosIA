@@ -94,3 +94,60 @@ Z = saida_encoder
 print(f"\nEncoder Stack — shape de entrada : {X_teste.shape}")
 print(f"Encoder Stack — shape de saída Z : {Z.shape}")
 print(f"Validação shapes iguais? {X_teste.shape == Z.shape}")
+
+# Decoder Block 
+
+class DecoderBlock:
+
+
+    def __init__(self):
+        self.W_query_self  = np.random.randn(D_MODEL, D_MODEL) * 0.01
+        self.W_key_self    = np.random.randn(D_MODEL, D_MODEL) * 0.01
+        self.W_value_self  = np.random.randn(D_MODEL, D_MODEL) * 0.01
+
+        self.W_query_cross = np.random.randn(D_MODEL, D_MODEL) * 0.01
+        self.W_key_cross   = np.random.randn(D_MODEL, D_MODEL) * 0.01
+        self.W_value_cross = np.random.randn(D_MODEL, D_MODEL) * 0.01
+
+        self.W1 = np.random.randn(D_MODEL, D_FF)  * 0.01
+        self.b1 = np.zeros((1, 1, D_FF))
+        self.W2 = np.random.randn(D_FF, D_MODEL)  * 0.01
+        self.b2 = np.zeros((1, 1, D_MODEL))
+
+        self.W_proj = np.random.randn(D_MODEL, VOCAB_SIZE) * 0.01
+
+    def forward(self, Y: np.ndarray, Z: np.ndarray) -> np.ndarray:
+
+        seq_len_dec = Y.shape[1]
+        mascara = create_causal_mask(seq_len_dec)
+
+        Q_self = Y @ self.W_query_self
+        K_self = Y @ self.W_key_self
+        V_self = Y @ self.W_value_self
+        saida_self = scaled_dot_product_attention(Q_self, K_self, V_self, mascara)
+        Y_norm1 = add_and_norm(Y, saida_self)
+
+        Q_cross = Y_norm1 @ self.W_query_cross
+        K_cross = Z      @ self.W_key_cross
+        V_cross = Z      @ self.W_value_cross
+        saida_cross = scaled_dot_product_attention(Q_cross, K_cross, V_cross)
+        Y_norm2 = add_and_norm(Y_norm1, saida_cross)
+
+        saida_ffn = feed_forward_network(Y_norm2, self.W1, self.b1, self.W2, self.b2)
+        Y_out = add_and_norm(Y_norm2, saida_ffn)
+
+        logits = Y_out @ self.W_proj
+        probabilidades = softmax(logits)
+
+        return probabilidades
+
+
+SEQ_LEN_DEC = 3
+Y_teste = np.random.randn(BATCH_SIZE, SEQ_LEN_DEC, D_MODEL)
+decoder_block = DecoderBlock()
+probs_teste = decoder_block.forward(Y_teste, Z)
+
+print(f"\nDecoder Block — shape entrada Y  : {Y_teste.shape}")
+print(f"Decoder Block — shape memória Z  : {Z.shape}")
+print(f"Decoder Block — shape saída probs: {probs_teste.shape}")
+print(f"Validação soma probs última pos  : {probs_teste[0, -1, :].sum():.6f}")
