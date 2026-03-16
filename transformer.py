@@ -151,3 +151,49 @@ print(f"\nDecoder Block — shape entrada Y  : {Y_teste.shape}")
 print(f"Decoder Block — shape memória Z  : {Z.shape}")
 print(f"Decoder Block — shape saída probs: {probs_teste.shape}")
 print(f"Validação soma probs última pos  : {probs_teste[0, -1, :].sum():.6f}")
+
+# Inferência Fim-a-Fim 
+
+TOKEN_START = "<START>"
+TOKEN_EOS   = "<EOS>"
+MAX_TOKENS  = 20
+
+vocabulario_ficticio = [f"word_{i}" for i in range(VOCAB_SIZE - 1)]
+vocabulario_ficticio.append(TOKEN_EOS)
+indice_eos = VOCAB_SIZE - 1
+
+encoder_input = np.random.randn(BATCH_SIZE, 2, D_MODEL)
+
+memoria_encoder = encoder_input
+for bloco in encoder_stack:
+    memoria_encoder = bloco.forward(memoria_encoder)
+
+Z_final = memoria_encoder
+
+sequencia_gerada = [TOKEN_START]
+decoder_block_final = DecoderBlock()
+
+print(" Inferência Fim-a-Fim")
+print(f"\nEntrada simulada: 'Thinking Machines'")
+print(f"Shape encoder_input : {encoder_input.shape}")
+print(f"Shape memória Z     : {Z_final.shape}")
+print(f"\nIniciando geração a partir de [{TOKEN_START}]...\n")
+
+while len(sequencia_gerada) <= MAX_TOKENS:
+    comprimento_atual = len(sequencia_gerada)
+    Y_atual = np.random.randn(BATCH_SIZE, comprimento_atual, D_MODEL)
+
+    probabilidades = decoder_block_final.forward(Y_atual, Z_final)
+    indice_proximo = int(np.argmax(probabilidades[0, -1, :]))
+    proximo_token  = vocabulario_ficticio[indice_proximo]
+
+    sequencia_gerada.append(proximo_token)
+    print(f"  Passo {comprimento_atual:02d} — token gerado: '{proximo_token}'")
+
+    if proximo_token == TOKEN_EOS:
+        print(f"\nToken <EOS> detectado! Geração encerrada.")
+        break
+
+print(f"\nSequência final gerada:")
+print(" ".join(sequencia_gerada))
+print("=" * 55)
